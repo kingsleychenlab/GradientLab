@@ -6,11 +6,6 @@ is derived and implemented by hand, and the only heavy lifting delegated to
 NumPy is vectorised linear algebra. No scikit-learn, no autograd, no fake
 outputs, no hardcoded equations.
 
-It is a clean rebuild of [amichaelyu/gradient-descent](https://github.com/amichaelyu/gradient-descent):
-same core idea, but vectorised, with CSV input, a proper CLI, feature
-normalization (which fixes the original's "higher-degree polynomials are slow")
-convergence tracking, plotting, and tests.
-
 ---
 
 ## What it does
@@ -95,10 +90,13 @@ GradientLab/
 
 ---
 
-## Setup
+## How to use it
 
-Runs from a fresh clone with only NumPy (matplotlib is needed just for
-`--plot`, pytest just for the tests).
+### Step 1 — Install (once)
+
+From the project root, create a virtual environment and install the
+dependencies. Only NumPy is needed to train; matplotlib is used for `--plot`
+and pytest for the tests.
 
 ```bash
 python3 -m venv .venv
@@ -106,37 +104,65 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
----
+### Step 2 — Run it on the included data
 
-## Usage
+The command is always `python -m gradientlab` followed by `--file` and any
+options. Try the quadratic sample:
 
 ```bash
 python -m gradientlab --file data/sample_quadratic.csv --degree 2 --normalize --learning-rate 0.1 --plot
 ```
 
-### Options
+This trains a degree-2 polynomial, prints the fitted equation, final loss, R²,
+iteration count and whether it converged, and — because of `--plot` — opens a
+window showing the data with the fitted curve and the training loss curve.
+
+### Step 3 — Run it on your own data
+
+Point `--file` at any CSV with two columns named `x` and `y` (the header row is
+optional):
+
+```
+x,y
+0,1.2
+1,3.1
+2,5.4
+3,9.0
+```
+
+```bash
+python -m gradientlab --file yourdata.csv --degree 3 --normalize
+```
+
+**Rule of thumb:** for any `--degree` of 2 or higher, add `--normalize`.
+Without it the high-power terms blow up the gradient and training diverges
+(you'll get a warning telling you exactly that).
+
+### All options
+
+Run `python -m gradientlab --help` to see these at any time.
 
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `--file` | *(required)* | CSV file with columns `x,y` (a header row is optional) |
 | `--degree` | `2` | Polynomial degree `n` |
-| `--learning-rate` | `0.01` | Step size `α` |
+| `--learning-rate` | `0.01` | Step size `α` (smaller = safer but slower) |
 | `--epochs` | `10000` | Maximum number of iterations |
-| `--tolerance` | `1e-9` | Stop when `abs(prev_loss − loss) < tolerance` |
+| `--tolerance` | `1e-9` | Stop early when `abs(prev_loss − loss) < tolerance` |
 | `--normalize` | off | Standardize `x` before fitting (recommended for degree ≥ 2) |
 | `--plot` | off | Show the data + fitted curve and the loss curve |
 
-### Examples
+### More examples
 
 ```bash
 # Straight line — converges fine without normalization
 python -m gradientlab --file data/sample_linear.csv --degree 1
 
-# Same fit, but normalization gets there in a fraction of the steps
+# Same line fit, but normalization gets there in far fewer iterations
 python -m gradientlab --file data/sample_linear.csv --degree 1 --normalize --learning-rate 0.1
 
-# Quadratic fit with a plot of the fit and the loss curve
-python -m gradientlab --file data/sample_quadratic.csv --degree 2 --normalize --learning-rate 0.1 --plot
+# Quadratic fit, no plot, tighter stopping tolerance
+python -m gradientlab --file data/sample_quadratic.csv --degree 2 --normalize --tolerance 1e-12
 ```
 
 ---
@@ -186,20 +212,6 @@ The suite checks the pieces that have to be correct: prediction, MSE, R², the
 analytic gradient (against a finite-difference approximation), that the loss
 decreases monotonically during training, that a known line is recovered, that
 the reported equation reproduces the model's predictions, and CSV loading.
-
----
-
-## How it improves on the original
-
-| Original | GradientLab |
-|----------|-------------|
-| Data hardcoded in the script | Loads any `x,y` CSV |
-| Pure-Python nested loops | Vectorised NumPy |
-| Degree limited to 2–4, slow for cubics+ | Any degree; `--normalize` keeps high degrees stable and fast |
-| Convergence by rounded-coefficient equality | Loss-change tolerance **or** max epochs, with divergence detection |
-| No tests | Focused pytest suite incl. a finite-difference gradient check |
-| ~50-package `requirements.txt` (manim, etc.) | 3 dependencies |
-| No CLI | `argparse` CLI with the documented options |
 
 ---
 
